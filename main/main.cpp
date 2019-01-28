@@ -11,6 +11,8 @@ extern "C" {
 void app_main(void){
     ESP_LOGI("main", "Hello World");
     wifi_settings s;
+    s.set_mode(ETH);
     ESP_LOGI("main", "%s", s.get_ssid().c_str());
-    
+    wifi_adapter::init(s);
+    wifi_adapter::start();
 }
