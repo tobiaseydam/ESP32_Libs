@@ -121,9 +121,15 @@ esp_err_t layer2_adapter::event_handler(void *ctx, system_event_t *event){
             ESP_LOGI(TAG, "SYSTEM_EVENT_ETH_DISCONNECTED");
             break;
 
-        case SYSTEM_EVENT_ETH_GOT_IP:               /**< ESP32 ethernet got IP from connected AP */
+        case SYSTEM_EVENT_ETH_GOT_IP:{               /**< ESP32 ethernet got IP from connected AP */
             ESP_LOGI(TAG, "SYSTEM_EVENT_ETH_GOT_IP");
+            ip_settings* s = (ip_settings*)ctx;
+            if(s->is_got_ip_callback_set()){
+                ESP_LOGI(TAG, "executing got_ip_callback");
+                s->get_got_ip_callback()(s->get_got_ip_callback_ctx());
+            }
             break;
+        }
 
         case SYSTEM_EVENT_MAX:
             ESP_LOGI(TAG, "SYSTEM_EVENT_MAX");
@@ -207,7 +213,7 @@ void wifi_adapter::stop(){
 }
 
 eth_adapter::eth_adapter(eth_settings as){
-    s = as;
+    s = new eth_settings(as);
 }
 
 void eth_adapter::eth_gpio_config_rmii(){
@@ -217,7 +223,7 @@ void eth_adapter::eth_gpio_config_rmii(){
 
 void eth_adapter::init(){
     tcpip_adapter_init();
-    ESP_ERROR_CHECK(esp_event_loop_init(event_handler, &s));
+    ESP_ERROR_CHECK(esp_event_loop_init(event_handler, s));
 }
 
 void eth_adapter::start(){

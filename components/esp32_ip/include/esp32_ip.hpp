@@ -14,18 +14,33 @@ typedef enum{
     ETH
 }layer2_protocol_t;
 
+typedef void (*got_ip_callback_t)(void *ctx);
+
 class ip_settings{
-    private:
+    protected:
         layer2_protocol_t l2p = WIFI_AP;
+        got_ip_callback_t got_ip_callback = NULL;
+        void* got_ip_callback_ctx = NULL;
+        bool got_ip_callback_set = false;
     public:
         void set_l2p(layer2_protocol_t value){ l2p = value; }
         layer2_protocol_t get_l2p(){ return l2p; }
+        
+        void set_got_ip_callback(got_ip_callback_t value, void *ctx){ 
+            got_ip_callback = value; 
+            got_ip_callback_ctx = ctx;
+            got_ip_callback_set = true;
+        };
+        got_ip_callback_t get_got_ip_callback(){ return got_ip_callback; };
+        bool is_got_ip_callback_set(){ return got_ip_callback_set; };
+        void* get_got_ip_callback_ctx(){ return got_ip_callback_ctx; };
 };
 
 class eth_settings: public ip_settings{
     private:
     public:
         eth_settings();
+        eth_settings(const eth_settings &s);
 };
 
 class wifi_settings: public ip_settings{
@@ -58,10 +73,12 @@ class wifi_settings: public ip_settings{
         void reset_current_try(){ current_try = 0; };
 };
 
+
 class layer2_adapter{
     protected:
         static constexpr char *TAG = (char*)"layer2_adapter";
-        static esp_err_t event_handler(void *ctx, system_event_t *event); 
+        static esp_err_t event_handler(void *ctx, system_event_t *event);
+        
     public:
         virtual void init();
         virtual void start();
@@ -71,7 +88,7 @@ class layer2_adapter{
 class eth_adapter : public layer2_adapter{
     protected:
         static constexpr char *TAG = (char*)"eth_adapter";
-        eth_settings s;
+        eth_settings* s;
         static void eth_gpio_config_rmii();
     public:
         eth_adapter(eth_settings as);
