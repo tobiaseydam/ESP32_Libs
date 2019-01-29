@@ -11,7 +11,11 @@
                 "_DEBUG",
                 "UNICODE",
                 "_UNICODE",
-                "BOOTLOADER_BUILD"
+                "BOOTLOADER_BUILD",
+                "CONFIG_LOG_BOOTLOADER_LEVEL",
+                "CONFIG_ESP32_WIFI_STATIC_RX_BUFFER_NUM",
+                "CONFIG_ESP32_WIFI_DYNAMIC_RX_BUFFER_NUM",
+                "CONFIG_ESP32_WIFI_TX_BUFFER_TYPE"
             ],
             "windowsSdkVersion": "10.0.10240.0",
             "compilerPath": "C:/Program Files (x86)/Microsoft Visual Studio 14.0/VC/bin/cl.exe",

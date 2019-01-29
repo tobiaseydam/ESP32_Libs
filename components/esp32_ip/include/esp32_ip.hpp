@@ -16,7 +16,7 @@ typedef enum{
 
 class ip_settings{
     private:
-        layer2_protocol_t l2p = ETH;
+        layer2_protocol_t l2p = WIFI_AP;
     public:
         void set_l2p(layer2_protocol_t value){ l2p = value; }
         layer2_protocol_t get_l2p(){ return l2p; }
@@ -25,39 +25,68 @@ class ip_settings{
 class eth_settings: public ip_settings{
     private:
     public:
+        eth_settings();
 };
 
 class wifi_settings: public ip_settings{
     private:
-        string ssid;
-        string pass;
+        string ssid = "ESP32_test";
+        string pass = "k79Zqr2LjOOd";
+        int ap_max_connection = 5;
+        wifi_auth_mode_t ap_authmode = WIFI_AUTH_WPA_WPA2_PSK;
+        int max_tries = 5;
+        int current_try = 0;
     public:
         void set_ssid(string value){ ssid = value; };
         string get_ssid(){ return ssid; };
 
         void set_pass(string value){ pass = value; };
         string get_pass(){ return pass; };
+
+        void set_ap_max_connection(int value){ ap_max_connection = value; };
+        int get_ap_max_connection(){ return ap_max_connection; };
+
+        void set_ap_authmode(wifi_auth_mode_t value){ ap_authmode = value; };
+        wifi_auth_mode_t get_ap_authmode(){ return ap_authmode; };
+
+        void set_max_tries(int value){ max_tries = value; };
+        int get_max_tries(){ return max_tries; };
+
+        void set_current_try(int value){ current_try = value; };
+        int get_current_try(){ return current_try; };
+        void inc_current_try(){ current_try++; };
+        void reset_current_try(){ current_try = 0; };
 };
 
 class layer2_adapter{
-    private:
+    protected:
+        static constexpr char *TAG = (char*)"layer2_adapter";
         static esp_err_t event_handler(void *ctx, system_event_t *event); 
     public:
-        virtual void init(ip_settings s);
+        virtual void init();
         virtual void start();
         virtual void stop();
 };
 
 class eth_adapter : public layer2_adapter{
+    protected:
+        static constexpr char *TAG = (char*)"eth_adapter";
+        eth_settings s;
+        static void eth_gpio_config_rmii();
     public:
-        void init(ip_settings s) override;
+        eth_adapter(eth_settings as);
+        void init() override;
         void start() override;
         void stop() override;
 };
 
 class wifi_adapter : public layer2_adapter{
+    protected:
+        static constexpr char *TAG = (char*)"wifi_adapter";
+        wifi_settings s;
     public:
-        void init(ip_settings s) override;
+        wifi_adapter(wifi_settings as);
+        void init() override;
         void start() override;
         void stop() override;
 };
