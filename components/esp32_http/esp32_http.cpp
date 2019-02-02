@@ -1,5 +1,6 @@
 #include "esp32_http.hpp"
 #include "esp_err.h"
+#include "esp_log.h"
 #include <string.h>
 
 http_server::http_server(http_settings as){
@@ -19,6 +20,7 @@ void http_server::register_uri_handler(http_uri_handler ahandler){
 
 
 void http_server::init(){
+    
 }
 
 void http_server::start(){
@@ -44,8 +46,19 @@ void http_server::stop(){
 void http_server::example(){
     http_uri_handler* h = new http_uri_handler();
     h->set_uri("/test");
-    h->set_method(HTTP_GET);
+    h->set_method(HTTP_POST);
     h->set_handler([](httpd_req_t *req){
+        int remaining = req->content_len;
+        ESP_LOGI(TAG, "%d", remaining);
+        char buffer[256];
+        esp_err_t ret;
+        while (remaining > 0){
+            if ((ret = httpd_req_recv(req, buffer, MIN(remaining, sizeof(buffer)))) < 0) {
+                return ESP_FAIL;
+            }
+            remaining -= ret;
+            ESP_LOGI(TAG, "%s", buffer);
+        }
         string resp = "Hello World";
         httpd_resp_send(req, resp.c_str(), resp.length());
         return ESP_OK;

@@ -3,10 +3,18 @@
 
 #include "esp_http_server.h"
 #include <string>
+#include <stdio.h>
+#include <dirent.h>
+
+#ifndef MIN
+    #define MIN(x, y)  ((x) < (y) ? (x) : (y))
+#endif
+
 using namespace std;
 
 class http_settings{
     private:
+        static constexpr char *TAG = (char*)"http_settings";
         bool https = false;
     public:
         void set_https(bool value){ https = value; };
@@ -17,6 +25,7 @@ typedef esp_err_t (*uri_handler_t)(httpd_req_t *r);
 
 class http_uri_handler{
     private:
+        static constexpr char *TAG = (char*)"http_uri_handler";
         string uri;
         httpd_method_t method;
         uri_handler_t handler;
@@ -35,18 +44,35 @@ class http_uri_handler{
         void* get_user_ctx(){ return user_ctx; };
 };
 
+class http_header_parser{
+    private:
+        static constexpr char *TAG = (char*)"http_header_parser";
+};
+
 class http_server{
     private:
+        static constexpr char *TAG = (char*)"http_server";
         http_settings s;
         httpd_handle_t* server;
     public:
         http_server(http_settings as);
-        //http_server(const http_server &s);
         void register_uri_handler(http_uri_handler ahandler);
-        void init();
+        virtual void init();
         void start();
         void stop();
         void example();
+};
+
+class default_http_server: public http_server{
+    protected:
+        static constexpr char *TAG = (char*)"default_http_server";
+        string rf;
+    public:
+        default_http_server(http_settings as, string root_folder_name);
+        void init() override;
+
+        static esp_err_t* spiffs_handler(httpd_req_t *req);
+        static esp_err_t* upload_handler(httpd_req_t *req);
 };
 
 #endif
