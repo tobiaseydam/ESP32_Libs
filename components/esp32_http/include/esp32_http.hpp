@@ -2,6 +2,7 @@
 #define ESP32_HTTP_HPP
 
 #include "esp_http_server.h"
+#include "esp_https_server.h"
 #include <string>
 #include <stdio.h>
 #include <dirent.h>
@@ -9,6 +10,12 @@
 #ifndef MIN
     #define MIN(x, y)  ((x) < (y) ? (x) : (y))
 #endif
+
+//#define ROOT_CA_PEM_FILE    "/spiffs/cacert.pem"
+//#define PRIVATE_KEY_FILE    "/spiffs/prvtkey.pem"
+
+#define ROOT_CA_PEM_FILE    "/spiffs/cert.pem"
+#define PRIVATE_KEY_FILE    "/spiffs/private.key"
 
 using namespace std;
 
@@ -54,6 +61,9 @@ class http_server{
         static constexpr char *TAG = (char*)"http_server";
         http_settings s;
         httpd_handle_t* server;
+        const char* root_ca_pem; 
+        const char* private_key_pem; 
+        bool load_cert();
     public:
         http_server(http_settings as);
         void register_uri_handler(http_uri_handler ahandler);

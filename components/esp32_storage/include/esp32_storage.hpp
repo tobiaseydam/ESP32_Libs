@@ -16,6 +16,8 @@ class storage_adapter{
         void init();
         DIR* get_root_folder();
         string get_root_folder_name();
+
+        static long get_file_size(const char* filename);
 };
 
 #endif

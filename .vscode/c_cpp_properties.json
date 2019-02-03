@@ -5,7 +5,6 @@
             "includePath": [
                 "${workspaceFolder}/**",
                 "D:/Projekte/07_ESP32_Toolchain/msys32/home/Tobias/esp-idf/components/**"
-
             ],
             "defines": [
                 "_DEBUG",
