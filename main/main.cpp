@@ -5,6 +5,7 @@
 #include "esp32_ip.hpp"
 #include "esp32_http.hpp"
 #include "esp32_storage.hpp"
+#include "esp32_onewire.hpp"
 
 extern "C" {
     void app_main(void);
@@ -29,4 +30,9 @@ void app_main(void){
     eth_adapter eth(eth_s);
     eth.init();
     eth.start();
+
+    onewire_adapter* ow = new onewire_adapter(17);
+
+    onewire_logger owl;
+    owl.run(ow);
 }

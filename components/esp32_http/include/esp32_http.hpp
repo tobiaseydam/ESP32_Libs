@@ -51,11 +51,6 @@ class http_uri_handler{
         void* get_user_ctx(){ return user_ctx; };
 };
 
-class http_header_parser{
-    private:
-        static constexpr char *TAG = (char*)"http_header_parser";
-};
-
 class http_server{
     private:
         static constexpr char *TAG = (char*)"http_server";
