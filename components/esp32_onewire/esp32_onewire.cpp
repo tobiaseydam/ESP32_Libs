@@ -163,9 +163,12 @@ bool onewire_adapter::check_mask(onewire_addr_t mask, uint8_t bit, uint8_t byte)
 }
 
 void onewire_adapter::read_data(){
+    portMUX_TYPE myMutex = portMUX_INITIALIZER_UNLOCKED;
+    portENTER_CRITICAL(&myMutex);
     reset_pulse();
     send_byte(0xCC);
     send_byte(0x44);
+    portEXIT_CRITICAL(&myMutex);
     while(read_bit() == 0){
         ets_delay_us(100000);
         ESP_LOGI(TAG, ".");
@@ -174,10 +177,11 @@ void onewire_adapter::read_data(){
     reset_pulse();
 
     for(int i = 0; i<num_devices; i++){
-        ESP_LOGI(TAG, "Reading device...");
+        //ESP_LOGI(TAG, "Reading device...");
+        portENTER_CRITICAL(&myMutex);
         send_byte(0x55);
         onewire_addr_t addr = devices[i]->get_addr();
-        print_addr(addr);
+        //print_addr(addr);
         for(int j = 0; j<8; j++){
             send_byte(addr.x[j]);
         }
@@ -187,12 +191,14 @@ void onewire_adapter::read_data(){
             d.x[j] = read_byte();
             //ESP_LOGI(TAG, "%x", d.x[j]);
         }
-        devices[i]->set_data(d);
-        ESP_LOGI(TAG, "%f", devices[i]->get_temperature());
-        devices[i]->print_data();
-        ESP_LOGI(TAG, "--------------------");
         reset_pulse();
+        portEXIT_CRITICAL(&myMutex);
+        devices[i]->set_data(d);
+        //ESP_LOGI(TAG, "%f", devices[i]->get_temperature());
+        //devices[i]->print_data();
+        devices[i]->print();
     }
+    ESP_LOGI(TAG, "--------------------");
 }
 
 void onewire_logger::log_task(void *param){

@@ -14,13 +14,20 @@ class onewire_device{
         static constexpr char *TAG = (char*)"onewire_device";
         onewire_addr_t addr;
         onewire_data_t data;
+        bool b_crc;
+        uint8_t hlp_crc(uint8_t crc, uint8_t d);
+        uint16_t readings = 0;
+        uint16_t fails = 0;
     public:
         onewire_device(onewire_addr_t a);
         onewire_addr_t get_addr(){return addr;};
         onewire_data_t get_data(){return data;};
-        void set_data(onewire_data_t d ){data = d;};
+        bool get_crc(){return b_crc;};
+        void set_data(onewire_data_t d );
         double get_temperature();
         void print_data();
+        void check_crc();
+        void print();
 };
 
 class onewire_adapter{
