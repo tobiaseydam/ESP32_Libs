@@ -1,17 +1,27 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "esp_log.h"
+#include "freertos/queue.h"
+#include "rom/ets_sys.h"
 
 #include "esp32_ip.hpp"
 #include "esp32_http.hpp"
 #include "esp32_storage.hpp"
 #include "esp32_onewire.hpp"
+#include "esp32_logger.hpp"
+
+#include <string>
 
 extern "C" {
     void app_main(void);
 }
 
 void app_main(void){
+    #ifdef GIT_VERSION
+        string version = GIT_VERSION;
+        ESP_LOGI("test", "Version: %s", version.c_str());
+    #endif   
+
     storage_adapter stor;
     stor.init();
 
@@ -35,4 +45,14 @@ void app_main(void){
 
     onewire_logger owl;
     owl.run(ow);
+
+    log_manager l;
+    ow->get_log_elements(l.get_list());
+
+    while(true){
+        string s = l.json_elements_to_string();
+        ESP_LOGI("test", "%s", s.c_str());
+        vTaskDelay(pdMS_TO_TICKS(2000));
+    }
+
 }

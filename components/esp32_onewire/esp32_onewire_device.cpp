@@ -65,3 +65,17 @@ void onewire_device::set_data(onewire_data_t d ){
 void onewire_device::print(){
     ESP_LOGI(TAG, "%02x %02x %02x %02x %02x %02x %02x %02x : %08f °C - readings: %d, fails: %d", addr.x[0],addr.x[1],addr.x[2],addr.x[3],addr.x[4],addr.x[5],addr.x[6],addr.x[7], get_temperature(), readings, fails);
 }
+
+
+
+string onewire_device::addr_to_string(){
+    char buffer[24];
+    sprintf(buffer, "%02x %02x %02x %02x %02x %02x %02x %02x", addr.x[0],addr.x[1],addr.x[2],addr.x[3],addr.x[4],addr.x[5],addr.x[6],addr.x[7]);
+    return string(buffer);
+}   
+
+string onewire_device::data_to_string(){
+    char buffer[27];
+    sprintf(buffer, "%02x %02x %02x %02x %02x %02x %02x %02x %02x", data.x[0],data.x[1],data.x[2],data.x[3],data.x[4],data.x[5],data.x[6],data.x[7],data.x[8]);
+    return string(buffer);
+}

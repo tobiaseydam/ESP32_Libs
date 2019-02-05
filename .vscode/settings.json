@@ -35,6 +35,7 @@
         "cerrno": "c",
         "emit.h": "c",
         "lexer.h": "c",
-        "mpconfig.h": "c"
+        "mpconfig.h": "c",
+        "list": "cpp"
     }
 }

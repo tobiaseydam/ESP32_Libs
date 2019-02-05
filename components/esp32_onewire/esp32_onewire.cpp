@@ -214,3 +214,11 @@ void onewire_logger::run(onewire_adapter* ow){
     TaskHandle_t xHandle = NULL;
     xTaskCreate( log_task, "ONEWIRE LOGGER", 2048, ow, tskIDLE_PRIORITY, &xHandle );
 }
+
+
+void onewire_adapter::get_log_elements(list <log_element*>* l){
+    for(uint8_t i = 0; i<num_devices; i++){
+        log_element* e = new log_element("DS18B20", DS18B20, devices[i]);
+        l->push_back(e);
+    }
+}

@@ -3,11 +3,13 @@
 
 #include <string>
 #include "driver/gpio.h"
+#include "esp32_logger.hpp"
+#include <list>
 
 #define MAX_NUM_ONEWIRE_DEVICES 8
 
 typedef struct onewire_addr { uint8_t x[8]; } onewire_addr_t;
-typedef struct onewire_data { uint8_t x[10]; } onewire_data_t;
+typedef struct onewire_data { uint8_t x[9]; } onewire_data_t;
 
 class onewire_device{
     private:
@@ -28,6 +30,10 @@ class onewire_device{
         void print_data();
         void check_crc();
         void print();
+        uint16_t get_readings(){return readings;};
+        uint16_t get_fails(){return fails;};
+        string addr_to_string();
+        string data_to_string();
 };
 
 class onewire_adapter{
@@ -53,7 +59,7 @@ class onewire_adapter{
         int get_num_devices(){return num_devices;};
         onewire_adapter(uint8_t p);
         void read_data();
-        
+        void get_log_elements(list <log_element*>* l);
 };
 
 class onewire_logger{
