@@ -2,9 +2,16 @@
 #define ESP32_IP_HPP
 
 #include <string>
-#include "esp_err.h"
-#include "esp_event_loop.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
 #include "freertos/event_groups.h"
+#include "esp_err.h"
+#include "esp_log.h"
+#include "esp_event_loop.h"
+
+#define WIFI_CONNECTED_BIT  BIT0
+#define ETH_CONNECTED_BIT   BIT1
+#define GOT_IP_BIT          BIT2
 
 using namespace std;
 
@@ -19,13 +26,17 @@ typedef void (*got_ip_callback_t)(void *ctx);
 class ip_settings{
     protected:
         layer2_protocol_t l2p = WIFI_AP;
+        EventGroupHandle_t event_group = NULL;
         got_ip_callback_t got_ip_callback = NULL;
         void* got_ip_callback_ctx = NULL;
         bool got_ip_callback_set = false;
     public:
         void set_l2p(layer2_protocol_t value){ l2p = value; }
         layer2_protocol_t get_l2p(){ return l2p; }
-        
+
+        void set_event_group(EventGroupHandle_t e) { event_group = e; };
+        EventGroupHandle_t get_event_group() { return event_group; };
+
         void set_got_ip_callback(got_ip_callback_t value, void *ctx){ 
             got_ip_callback = value; 
             got_ip_callback_ctx = ctx;

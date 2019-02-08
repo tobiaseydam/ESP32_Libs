@@ -3,6 +3,13 @@
 #include "esp_log.h"
 #include <string.h>
 #include "esp32_storage.hpp"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#include "freertos/event_groups.h"
+
+#define WIFI_CONNECTED_BIT  BIT0
+#define ETH_CONNECTED_BIT   BIT1
+#define GOT_IP_BIT          BIT2
 
 http_server::http_server(http_settings as){
     s = as;
@@ -25,6 +32,7 @@ void http_server::init(){
 }
 
 void http_server::start(){
+    xEventGroupWaitBits(s.get_event_group(), GOT_IP_BIT, false, true, portMAX_DELAY);
     if(s.get_https() && load_cert()){
         httpd_ssl_config_t config;    
 

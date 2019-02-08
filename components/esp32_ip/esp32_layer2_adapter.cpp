@@ -36,6 +36,7 @@ esp_err_t layer2_adapter::event_handler(void *ctx, system_event_t *event){
             ESP_LOGI(TAG, "SYSTEM_EVENT_STA_CONNECTED");
             wifi_settings *ws = (wifi_settings*)ctx;
             ws->reset_current_try();
+            xEventGroupSetBits(ws->get_event_group(), WIFI_CONNECTED_BIT);
             break;
         }
 
@@ -46,6 +47,7 @@ esp_err_t layer2_adapter::event_handler(void *ctx, system_event_t *event){
                 ESP_ERROR_CHECK(esp_wifi_connect());
                 ws->inc_current_try();
             }
+            xEventGroupClearBits(ws->get_event_group(), WIFI_CONNECTED_BIT);
             break;
         }
 
@@ -53,13 +55,19 @@ esp_err_t layer2_adapter::event_handler(void *ctx, system_event_t *event){
             ESP_LOGI(TAG, "SYSTEM_EVENT_STA_AUTHMODE_CHANGE");
             break;
 
-        case SYSTEM_EVENT_STA_GOT_IP:               /**< ESP32 station got IP from connected AP */
+        case SYSTEM_EVENT_STA_GOT_IP:{               /**< ESP32 station got IP from connected AP */
             ESP_LOGI(TAG, "SYSTEM_EVENT_STA_GOT_IP");
+            wifi_settings *ws = (wifi_settings*)ctx;
+            xEventGroupSetBits(ws->get_event_group(), GOT_IP_BIT);
             break;
+        }
 
-        case SYSTEM_EVENT_STA_LOST_IP:              /**< ESP32 station lost IP and the IP is reset to 0 */
+        case SYSTEM_EVENT_STA_LOST_IP:{              /**< ESP32 station lost IP and the IP is reset to 0 */
             ESP_LOGI(TAG, "SYSTEM_EVENT_STA_LOST_IP");
+            wifi_settings *ws = (wifi_settings*)ctx;
+            xEventGroupClearBits(ws->get_event_group(), GOT_IP_BIT);
             break;
+        }
 
         case SYSTEM_EVENT_STA_WPS_ER_SUCCESS:       /**< ESP32 station wps succeeds in enrollee mode */
             ESP_LOGI(TAG, "SYSTEM_EVENT_STA_WPS_ER_SUCCESS");
@@ -113,14 +121,19 @@ esp_err_t layer2_adapter::event_handler(void *ctx, system_event_t *event){
             ESP_LOGI(TAG, "SYSTEM_EVENT_ETH_STOP");
             break;
 
-        case SYSTEM_EVENT_ETH_CONNECTED:            /**< ESP32 ethernet phy link up */
+        case SYSTEM_EVENT_ETH_CONNECTED:{            /**< ESP32 ethernet phy link up */
             ESP_LOGI(TAG, "SYSTEM_EVENT_ETH_CONNECTED");
+            ip_settings* s = (ip_settings*)ctx;
+            xEventGroupSetBits(s->get_event_group(), ETH_CONNECTED_BIT);
             break;
+        }
 
-        case SYSTEM_EVENT_ETH_DISCONNECTED:         /**< ESP32 ethernet phy link down */
+        case SYSTEM_EVENT_ETH_DISCONNECTED:{         /**< ESP32 ethernet phy link down */
             ESP_LOGI(TAG, "SYSTEM_EVENT_ETH_DISCONNECTED");
+            ip_settings* s = (ip_settings*)ctx;
+            xEventGroupClearBits(s->get_event_group(), ETH_CONNECTED_BIT);
             break;
-
+        }
         case SYSTEM_EVENT_ETH_GOT_IP:{               /**< ESP32 ethernet got IP from connected AP */
             ESP_LOGI(TAG, "SYSTEM_EVENT_ETH_GOT_IP");
             ip_settings* s = (ip_settings*)ctx;
@@ -128,6 +141,7 @@ esp_err_t layer2_adapter::event_handler(void *ctx, system_event_t *event){
                 ESP_LOGI(TAG, "executing got_ip_callback");
                 s->get_got_ip_callback()(s->get_got_ip_callback_ctx());
             }
+            xEventGroupSetBits(s->get_event_group(), GOT_IP_BIT);
             break;
         }
 

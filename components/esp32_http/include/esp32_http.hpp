@@ -3,6 +3,9 @@
 
 #include "esp_http_server.h"
 #include "esp_https_server.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#include "freertos/event_groups.h"
 #include <string>
 #include <stdio.h>
 #include <dirent.h>
@@ -23,9 +26,13 @@ class http_settings{
     private:
         static constexpr char *TAG = (char*)"http_settings";
         bool https = false;
+        EventGroupHandle_t event_group = NULL;
     public:
         void set_https(bool value){ https = value; };
         bool get_https(){ return https; };
+
+        void set_event_group(EventGroupHandle_t e) { event_group = e; };
+        EventGroupHandle_t get_event_group() { return event_group; };
 };
 
 typedef esp_err_t (*uri_handler_t)(httpd_req_t *r);
