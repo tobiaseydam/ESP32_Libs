@@ -14,6 +14,12 @@
     #define MIN(x, y)  ((x) < (y) ? (x) : (y))
 #endif
 
+#define WIFI_CONNECTED_BIT  BIT0
+#define ETH_CONNECTED_BIT   BIT1
+#define GOT_IP_BIT          BIT2
+#define HTTP_ONLINE_BIT     BIT3
+#define SNTP_CLOCK_SET_BIT  BIT4
+
 //#define ROOT_CA_PEM_FILE    "/spiffs/cacert.pem"
 //#define PRIVATE_KEY_FILE    "/spiffs/prvtkey.pem"
 
@@ -85,6 +91,16 @@ class default_http_server: public http_server{
 
         static esp_err_t* spiffs_handler(httpd_req_t *req);
         static esp_err_t* upload_handler(httpd_req_t *req);
+};
+
+class http_server_task{
+    private:
+        static constexpr char *TAG = (char*)"http_server_task";
+        default_http_server *srv;
+        static TaskHandle_t handle;
+        static void startup_task(void* param);
+    public:
+        http_server_task(http_settings as, string root_folder_name);
 };
 
 #endif

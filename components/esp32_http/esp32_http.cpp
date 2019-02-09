@@ -91,8 +91,7 @@ void http_server::start(){
 
         ESP_ERROR_CHECK(httpd_start(server, &config));
     }
-
-    
+    xEventGroupSetBits(s.get_event_group(), HTTP_ONLINE_BIT);
 }
 
 void http_server::stop(){

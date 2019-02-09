@@ -42,9 +42,13 @@ void app_main(void){
     http_settings srv_s;
     srv_s.set_event_group(ip_event_group);
 
-    default_http_server *srv = new default_http_server(srv_s, stor.get_root_folder_name());
-    srv->start();
-    srv->init();
+    http_server_task hst(srv_s, stor.get_root_folder_name());
+    
+    system_clock_task sct(ip_event_group);
+
+    //default_http_server *srv = new default_http_server(srv_s, stor.get_root_folder_name());
+    //srv->start();
+    //srv->init();
 
     onewire_adapter* ow = new onewire_adapter(17);
     onewire_logger owl;
@@ -59,9 +63,9 @@ void app_main(void){
         vTaskDelay(pdMS_TO_TICKS(2000));
     }
     
-    vTaskDelay(pdMS_TO_TICKS(10000));
+    //vTaskDelay(pdMS_TO_TICKS(10000));
     
-    system_clock c;
+    //system_clock c;
     
 
 }
