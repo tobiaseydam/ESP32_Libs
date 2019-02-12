@@ -27,11 +27,22 @@ class log_element{
         cJSON* to_JSON();
 };
 
+class log_config{
+    private:
+        bool log_to_aws = false;
+    public:
+        void set_log_to_aws(bool value){ log_to_aws = value; };
+        bool get_log_to_aws(){ return log_to_aws; };
+};
+
 class log_manager{
     private:
         static constexpr char *TAG = (char*)"log_manager";
         list <log_element*> elements;
+        log_config lc;
     public:
+        log_manager(log_config alc);
+
         void add_element(log_element* e);
         void print_elements();
         string json_elements_to_string();

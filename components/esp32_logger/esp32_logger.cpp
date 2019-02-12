@@ -47,7 +47,9 @@ string log_element::value_to_string(){
     return res;
 }
 
-
+log_manager::log_manager(log_config alc){
+    lc = alc;
+}
 
 void log_manager::add_element(log_element* e){
     elements.push_back(e);

@@ -15,6 +15,7 @@
 #include "esp32_onewire.hpp"
 #include "esp32_logger.hpp"
 #include "esp32_time.hpp"
+#include "esp32_aws.hpp"
 
 #include <string>
 
@@ -44,25 +45,26 @@ void app_main(void){
 
     http_server_task hst(srv_s, stor.get_root_folder_name());
     
-    system_clock_task sct(ip_event_group);
+    //system_clock_task sct(ip_event_group);
 
-    //default_http_server *srv = new default_http_server(srv_s, stor.get_root_folder_name());
-    //srv->start();
-    //srv->init();
+    //onewire_adapter* ow = new onewire_adapter(17);
+    //onewire_logger owl;
+    //owl.run(ow);
 
-    onewire_adapter* ow = new onewire_adapter(17);
-    onewire_logger owl;
-    owl.run(ow);
+    //log_config lc;
 
-    log_manager l;
-    ow->get_log_elements(l.get_list());
+    //log_manager l(lc);
+    //ow->get_log_elements(l.get_list());
 
     while(false){
-        string s = l.json_elements_to_string();
-        ESP_LOGI("test", "%s", s.c_str());
-        vTaskDelay(pdMS_TO_TICKS(2000));
+        //string s = l.json_elements_to_string();
+        //ESP_LOGI("test", "%s", s.c_str());
+        //vTaskDelay(pdMS_TO_TICKS(2000));
     }
     
+    xEventGroupWaitBits(ip_event_group, GOT_IP_BIT, false, true, portMAX_DELAY);
+    aws_task aws;
+    aws.run();
     //vTaskDelay(pdMS_TO_TICKS(10000));
     
     //system_clock c;

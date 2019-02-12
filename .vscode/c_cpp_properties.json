@@ -4,7 +4,8 @@
             "name": "Win32",
             "includePath": [
                 "${workspaceFolder}/**",
-                "D:/Projekte/07_ESP32_Toolchain/msys32/home/Tobias/esp-idf/components/**"
+                "D:/Projekte/07_ESP32_Toolchain/msys32/home/Tobias/esp-idf/components/**",
+                "D:/Projekte/07_ESP32_Toolchain/msys32/home/Tobias/amazon-freertos/lib/include/**"
             ],
             "defines": [
                 "_DEBUG",
