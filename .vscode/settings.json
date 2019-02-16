@@ -36,6 +36,9 @@
         "emit.h": "c",
         "lexer.h": "c",
         "mpconfig.h": "c",
-        "list": "cpp"
+        "list": "cpp",
+        "vector": "cpp",
+        "map": "cpp",
+        "xtree": "cpp"
     }
 }

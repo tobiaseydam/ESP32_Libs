@@ -10,6 +10,8 @@
 #include <stdio.h>
 #include <dirent.h>
 
+#include "esp32_settings.hpp"
+
 #ifndef MIN
     #define MIN(x, y)  ((x) < (y) ? (x) : (y))
 #endif
@@ -28,17 +30,37 @@
 
 using namespace std;
 
+typedef enum{
+    DEFAULT_HTTP_SERVER,
+    HEIZUNGS_HTTP_SERVER
+} e_http_server_class;
+
 class http_settings{
     private:
         static constexpr char *TAG = (char*)"http_settings";
         bool https = false;
         EventGroupHandle_t event_group = NULL;
+        e_http_server_class hsc = DEFAULT_HTTP_SERVER;
+        settings_manager* sm = NULL;
+        string root_folder;
     public:
+        http_settings(){};
+        http_settings(const http_settings &s);
+
         void set_https(bool value){ https = value; };
         bool get_https(){ return https; };
 
         void set_event_group(EventGroupHandle_t e) { event_group = e; };
         EventGroupHandle_t get_event_group() { return event_group; };
+
+        void set_http_server_class(e_http_server_class e) { hsc = e; };
+        e_http_server_class get_http_server_class() { return hsc; };
+
+        void set_settings_manager(settings_manager* e) { sm = e; };
+        settings_manager* get_settings_manager() { return sm; };
+
+        void set_root_folder(string e) { root_folder = e; };
+        string get_root_folder() { return root_folder; };
 };
 
 typedef esp_err_t (*uri_handler_t)(httpd_req_t *r);
@@ -64,16 +86,27 @@ class http_uri_handler{
         void* get_user_ctx(){ return user_ctx; };
 };
 
+class http_get_query_processor{
+    private:
+        static constexpr char *TAG = (char*)"http_get_query_processor";
+        string buf;
+        settings_manager* sm;
+    public:
+        http_get_query_processor(string buffer, settings_manager* sett_man);
+        void process();
+};
+
 class http_server{
     private:
         static constexpr char *TAG = (char*)"http_server";
-        http_settings s;
+    protected:
+        http_settings* s;
         httpd_handle_t* server;
         const char* root_ca_pem; 
         const char* private_key_pem; 
         bool load_cert();
     public:
-        http_server(http_settings as);
+        http_server(http_settings* as);
         void register_uri_handler(http_uri_handler ahandler);
         virtual void init();
         void start();
@@ -84,23 +117,35 @@ class http_server{
 class default_http_server: public http_server{
     protected:
         static constexpr char *TAG = (char*)"default_http_server";
-        string rf;
     public:
-        default_http_server(http_settings as, string root_folder_name);
-        void init() override;
+        default_http_server(http_settings* as);
+        virtual void init() override;
 
         static esp_err_t* spiffs_handler(httpd_req_t *req);
         static esp_err_t* upload_handler(httpd_req_t *req);
 };
 
+class heizung_http_server: public default_http_server{
+    protected:
+        static constexpr char *TAG = (char*)"heizung_http_server";
+    public:
+        void init() override;
+        heizung_http_server(http_settings* as);
+        static esp_err_t* settings_handler(httpd_req_t *req);
+};
+
 class http_server_task{
     private:
         static constexpr char *TAG = (char*)"http_server_task";
-        default_http_server *srv;
+        http_server *srv;
         static TaskHandle_t handle;
         static void startup_task(void* param);
     public:
-        http_server_task(http_settings as, string root_folder_name);
+        http_server_task(http_settings* as);
 };
+
+
+
+
 
 #endif

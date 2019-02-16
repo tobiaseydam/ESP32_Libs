@@ -11,12 +11,21 @@
 #define ETH_CONNECTED_BIT   BIT1
 #define GOT_IP_BIT          BIT2
 
-http_server::http_server(http_settings as){
+http_settings::http_settings(const http_settings &s){
+    https = s.https;
+    event_group = s.event_group;
+    hsc = s.hsc;
+    sm = s.sm;
+    root_folder = s.root_folder;
+}
+
+http_server::http_server(http_settings* as){
     s = as;
     server = new httpd_handle_t;
 }
 
 void http_server::register_uri_handler(http_uri_handler ahandler){
+    ESP_LOGI(TAG, "register URI handler: %s", ahandler.get_uri().c_str());
     httpd_uri_t u;
     memset(&u, 0, sizeof(u));
     u.uri = ahandler.get_uri().c_str();
@@ -32,8 +41,8 @@ void http_server::init(){
 }
 
 void http_server::start(){
-    xEventGroupWaitBits(s.get_event_group(), GOT_IP_BIT, false, true, portMAX_DELAY);
-    if(s.get_https() && load_cert()){
+    xEventGroupWaitBits(s->get_event_group(), GOT_IP_BIT, false, true, portMAX_DELAY);
+    if(s->get_https() && load_cert()){
         httpd_ssl_config_t config;    
 
         config.httpd.task_priority      = tskIDLE_PRIORITY+5;
@@ -91,7 +100,7 @@ void http_server::start(){
 
         ESP_ERROR_CHECK(httpd_start(server, &config));
     }
-    xEventGroupSetBits(s.get_event_group(), HTTP_ONLINE_BIT);
+    xEventGroupSetBits(s->get_event_group(), HTTP_ONLINE_BIT);
 }
 
 void http_server::stop(){

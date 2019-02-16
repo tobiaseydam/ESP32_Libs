@@ -16,6 +16,7 @@
 #include "esp32_logger.hpp"
 #include "esp32_time.hpp"
 #include "esp32_aws.hpp"
+#include "esp32_settings.hpp"
 
 #include <string>
 
@@ -33,6 +34,9 @@ void app_main(void){
     storage_adapter stor;
     stor.init();
 
+    settings_manager_heizung* sm = new settings_manager_heizung;
+    sm->load();
+    
     eth_settings eth_s;
     eth_s.set_event_group(ip_event_group);
 
@@ -40,10 +44,13 @@ void app_main(void){
     eth.init();
     eth.start();
 
-    http_settings srv_s;
-    srv_s.set_event_group(ip_event_group);
+    http_settings* srv_s = new http_settings;
+    srv_s->set_event_group(ip_event_group);
+    srv_s->set_http_server_class(HEIZUNGS_HTTP_SERVER);
+    srv_s->set_settings_manager(sm);
+    srv_s->set_root_folder(stor.get_root_folder_name());
 
-    http_server_task hst(srv_s, stor.get_root_folder_name());
+    http_server_task hst(srv_s);
     
     //system_clock_task sct(ip_event_group);
 
@@ -63,8 +70,8 @@ void app_main(void){
     }
     
     xEventGroupWaitBits(ip_event_group, GOT_IP_BIT, false, true, portMAX_DELAY);
-    aws_task aws;
-    aws.run();
+    //aws_task aws;
+    //aws.run();
     //vTaskDelay(pdMS_TO_TICKS(10000));
     
     //system_clock c;

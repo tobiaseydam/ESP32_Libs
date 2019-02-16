@@ -4,8 +4,8 @@
 #include "esp32_storage.hpp"
 #include "esp_system.h"
 
-default_http_server::default_http_server(http_settings as, string root_folder_name):http_server(as){
-    rf = root_folder_name;
+default_http_server::default_http_server(http_settings* as):http_server(as){
+
 }
 
 void default_http_server::init(){
@@ -13,21 +13,22 @@ void default_http_server::init(){
     h_spiffs->set_uri("/spiffs");
     h_spiffs->set_method(HTTP_GET);
     h_spiffs->set_handler((uri_handler_t)spiffs_handler);
-    h_spiffs->set_user_ctx(&rf);
+    h_spiffs->set_user_ctx(s);
     register_uri_handler(*h_spiffs);
 
     http_uri_handler* h_upload = new http_uri_handler();
     h_upload->set_uri("/upload");
     h_upload->set_method(HTTP_POST);
     h_upload->set_handler((uri_handler_t)upload_handler);
-    h_upload->set_user_ctx(&rf);
+    h_upload->set_user_ctx(s);
     register_uri_handler(*h_upload);
 }
 
 
 
 esp_err_t* default_http_server::spiffs_handler(httpd_req_t *req){
-    string* rf = (string*)req->user_ctx;
+    http_settings* hs = (http_settings*)req->user_ctx;
+    string rf = hs->get_root_folder();
     char* resp = new char[127];
 
     const uint8_t buf_len = httpd_req_get_url_query_len(req) + 1;
@@ -95,7 +96,7 @@ esp_err_t* default_http_server::spiffs_handler(httpd_req_t *req){
     httpd_resp_send_chunk(req, resp, strlen(resp));
 
     struct dirent *ent;
-    DIR* root = opendir(rf->c_str());
+    DIR* root = opendir(rf.c_str());
     while ((ent = readdir(root)) != NULL) {
         sprintf(resp, "<tr><td>");
         httpd_resp_send_chunk(req, resp, strlen(resp));
@@ -144,7 +145,7 @@ esp_err_t* default_http_server::spiffs_handler(httpd_req_t *req){
 }
 
 esp_err_t* default_http_server::upload_handler(httpd_req_t *req){
-    string* rf = (string*)req->user_ctx;
+    string rf = ((http_settings*)req->user_ctx)->get_root_folder();
     const uint8_t buffer_size = 128;
     char buffer[buffer_size];
     int remaining = req->content_len;
@@ -185,7 +186,7 @@ esp_err_t* default_http_server::upload_handler(httpd_req_t *req){
                                 p1 = value.find("filename=\"") + 10;
                                 p2 = value.find("\"", p1);
                                 filename = value.substr(p1, p2-p1);
-                                filename = *rf + "/" + filename;
+                                filename = rf + "/" + filename;
                                 f = fopen(filename.c_str(), "w");
                             }
 
