@@ -91,6 +91,7 @@ class http_get_query_processor{
         static constexpr char *TAG = (char*)"http_get_query_processor";
         string buf;
         settings_manager* sm;
+        void replaceAll(string& str, const string& from, const string& to);
     public:
         http_get_query_processor(string buffer, settings_manager* sett_man);
         void process();

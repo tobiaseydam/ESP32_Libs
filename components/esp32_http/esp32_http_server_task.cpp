@@ -26,7 +26,7 @@ http_server_task::http_server_task(http_settings* as){
             break;
     }
     
-    xTaskCreate( startup_task, "SERVER_TASK", 2048, srv, tskIDLE_PRIORITY, &handle );
+    xTaskCreate( startup_task, "SERVER_TASK", 4096, srv, tskIDLE_PRIORITY, &handle );
 }
 
 void http_server_task::startup_task(void* param){

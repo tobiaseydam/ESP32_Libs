@@ -29,6 +29,8 @@ class http_template_processor{
         string next_line;
         string processed_line;
         uint16_t process_setting(uint16_t idx);
+        uint16_t process_if(uint16_t idx);
+        uint16_t process_var(uint16_t idx);
         uint16_t process_tag(uint16_t idx);
     public: 
         http_template_processor(http_template* templ, settings_manager* a_sm);

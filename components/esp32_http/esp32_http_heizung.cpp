@@ -2,8 +2,19 @@
 #include "esp32_http_template.hpp"
 
 
+void http_get_query_processor::replaceAll(string& str, const string& from, const string& to) {
+    if(from.empty())
+        return;
+    size_t start_pos = 0;
+    while((start_pos = str.find(from, start_pos)) != std::string::npos) {
+        str.replace(start_pos, from.length(), to);
+        start_pos += to.length(); // In case 'to' contains 'from', like replacing 'x' with 'yx'
+    }
+}
+
 http_get_query_processor::http_get_query_processor(string buffer, settings_manager* sett_man){ 
     buf = buffer; 
+    replaceAll(buf, "%2F", "/");
     sm = sett_man;
 };
 
@@ -43,7 +54,6 @@ void http_get_query_processor::process(){
     }
 
     sm->save();
-    
 }
 
 heizung_http_server::heizung_http_server(http_settings* as)
@@ -68,12 +78,23 @@ esp_err_t* heizung_http_server::settings_handler(httpd_req_t *req){
     
     httpd_resp_set_type(req, "text/html");
 
+    char* buf = new char[512];
+    uint16_t len = 0;
+
+    httpd_req_recv(req, buf, len);
+    buf[len] = '\0';
+    ESP_LOGI(TAG, "%s", buf);
+
     const uint8_t buf_len = httpd_req_get_url_query_len(req) + 1;
     char* buffer = new char[buf_len]; 
 
     if (httpd_req_get_url_query_str(req, buffer, buf_len) == ESP_OK) {
         http_get_query_processor p(buffer, hs->get_settings_manager());
         p.process();
+        string line = "Einstellungen gespeichert, starte neu";
+        httpd_resp_send_chunk(req, line.c_str(), line.length());
+        httpd_resp_send_chunk(req, NULL, 0);
+        esp_restart();
     }
 
 
@@ -81,9 +102,9 @@ esp_err_t* heizung_http_server::settings_handler(httpd_req_t *req){
     http_template_processor tp = http_template_processor(&t, hs->get_settings_manager());
     tp.begin();
     ESP_LOGI(TAG, "begin response");
+    string line;
     while(!tp.finish()){
-        string line = tp.process_next_line();
-        //ESP_LOGI(TAG, "%s", line.c_str());
+        line = tp.process_next_line();
         httpd_resp_send_chunk(req, line.c_str(), line.length());
     }
     ESP_LOGI(TAG, "done response");

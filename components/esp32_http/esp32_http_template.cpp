@@ -57,15 +57,49 @@ uint16_t http_template_processor::process_setting(uint16_t pos){
     return p4+1;
 }
 
+uint16_t http_template_processor::process_if(uint16_t pos){
+    ESP_LOGI(TAG, "processing if: %s", next_line.substr(pos).c_str());
+    string condition = "";
+    while(pos < next_line.length()){
+        if(next_line[pos] == ' '){
+            pos++;
+        }else if(next_line.substr(pos, 7).compare("setting:")){
+            return process_setting(pos+7);
+        }else{
+            pos++;
+        }
+    }
+    ESP_LOGI(TAG, "invalid pattern: %s", next_line.c_str());
+    return pos;
+
+    
+}
+
+uint16_t http_template_processor::process_var(uint16_t pos){
+    ESP_LOGI(TAG, "processing var: %s", next_line.substr(pos).c_str());
+    while(pos < next_line.length()){
+        if(next_line[pos] == ' '){
+            pos++;
+        }else if(next_line.substr(pos, 7).compare("setting:")){
+            return process_setting(pos+7);
+        }else{
+            pos++;
+        }
+    }
+    ESP_LOGI(TAG, "invalid pattern: %s", next_line.c_str());
+    return pos;
+}
+
 uint16_t http_template_processor::process_tag(uint16_t pos){
     ESP_LOGI(TAG, "processing tag: %s", next_line.substr(pos).c_str());
     while(pos < next_line.length()){
-        if(next_line.substr(pos, 3).compare(" #>")==0){
-            return pos + 3;
-        }else if(next_line.substr(pos, 7).compare("setting")==0){
-            pos = process_setting(pos+7);
+        if(next_line[pos] == ' '){
+            pos++;
+        }else if(next_line.substr(pos, 4).compare("var:")==0){
+            pos = process_var(pos+4);
+        }else if(next_line.substr(pos, 2).compare("#>")==0){
+            return pos + 2;
         }else{
-            processed_line += next_line[pos];
             pos++;
         }
     }
@@ -78,8 +112,8 @@ string http_template_processor::process_next_line(){
     uint16_t pos = 0;
 
     while(pos < next_line.length()){
-        if(next_line.substr(pos, 3).compare("<# ")==0){
-            pos = process_tag(pos+3);
+        if(next_line.substr(pos, 2).compare("<#")==0){
+            pos = process_tag(pos+2);
         }else{
             processed_line += next_line[pos];
             pos++;

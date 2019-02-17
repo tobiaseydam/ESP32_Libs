@@ -11,11 +11,22 @@ using namespace std;
 typedef enum{
     WIFI_ACTIVE,
     WIFI_SSID,
-    WIFI_PASS
+    WIFI_PASS,
+    
+    AWS_ENDPOINT,
+    AWS_MQTT_PORT,
+    AWS_GGD_PORT,
+    AWS_GG_ENDPOINT,
+    AWS_THING_NAME,
+    AWS_ROOT_CA,
+    AWS_GROUP_CA,
+    AWS_CLIENT_CERT,
+    AWS_PRVT_KEY
 } e_settings_name;
 
 typedef enum{
-    WIFI
+    WIFI, 
+    AWS
 } e_settings_category;
 
 class settings_enum{
@@ -54,6 +65,18 @@ class settings_bool_element: public settings_element{
 };
 
 typedef settings_bool_element* settings_bool_element_p;
+
+class settings_int_element: public settings_element{
+    protected:
+        int value;
+    public:
+        string get_string_value();
+        void set_string_value(string val);
+        int get_int_value(){ return value; };
+        void set_int_value(int val){ value = val; };
+};
+
+typedef settings_int_element* settings_int_element_p;
 
 class settings_category{
         static constexpr char *TAG = (char*)"settings_category";

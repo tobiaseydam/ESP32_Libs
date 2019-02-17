@@ -28,6 +28,8 @@ extern "C" {
 EventGroupHandle_t ip_event_group;
 
 void app_main(void){
+    uint32_t freeRAM = heap_caps_get_free_size(MALLOC_CAP_INTERNAL);
+    ESP_LOGI("TAG", "free RAM is %d.", freeRAM);
 
     ip_event_group = xEventGroupCreate();
 
@@ -35,6 +37,7 @@ void app_main(void){
     stor.init();
 
     settings_manager_heizung* sm = new settings_manager_heizung;
+    //sm->init();
     sm->load();
     
     eth_settings eth_s;
@@ -70,8 +73,8 @@ void app_main(void){
     }
     
     xEventGroupWaitBits(ip_event_group, GOT_IP_BIT, false, true, portMAX_DELAY);
-    //aws_task aws;
-    //aws.run();
+    aws_task aws(sm);
+    aws.run();
     //vTaskDelay(pdMS_TO_TICKS(10000));
     
     //system_clock c;

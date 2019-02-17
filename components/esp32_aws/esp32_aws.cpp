@@ -28,91 +28,47 @@
 
 #include "cJSON.h"
 
-const char* aws_adapter::aws_root_ca_pem = NULL;
-const char* aws_adapter::aws_cert_pem = NULL;
-const char* aws_adapter::aws_private_key_pem = NULL;
-const char* aws_adapter::ggcore_ca_cert = NULL;
+settings_manager* aws_task::sm;
 
-bool aws_adapter::load_certs(){
+const char* aws_adapter::load_cert(string filename){
+    char* temp = NULL;
+    FILE* file = fopen(filename.c_str(), "r");
+    if(file){
+        uint16_t len = storage_adapter::get_file_size(filename.c_str());
+        temp = new char[len+1];
+        memset(temp, '\0', len);
+        char buf[32];
+        while(fgets(buf, 32 , file)){
+            strcat(temp, buf);
+        }
+        temp[len-1] = '\0';
+        fclose(file);
+        ESP_LOGI(TAG, "ok");
+    }else{
+        ESP_LOGI(TAG, "failed");
+    }
+    return temp;
+}
+
+void aws_adapter::load_certs(){
+    if(aws_root_ca_pem != NULL) delete(aws_root_ca_pem);
+    if(aws_root_ca_pem != NULL) delete(aws_cert_pem);
+    if(aws_root_ca_pem != NULL) delete(aws_group_ca_cert);
+    if(aws_root_ca_pem != NULL) delete(aws_private_key_pem);
+
     ESP_LOGI(TAG, "loading ROOT_CA");
-    FILE* file = fopen(AWS_ROOT_CA_PEM_FILE, "r");
-    uint16_t len = 0;
-    if(file){
-        if(!aws_root_ca_pem){
-            len = storage_adapter::get_file_size(AWS_ROOT_CA_PEM_FILE);
-            char *root_ca = new char[len]();
-            memset(root_ca, '\0', len);
-            char buffer[32];
-            while(fgets(buffer, 32 , file)){
-                strcat(root_ca, buffer);
-            }
-            root_ca[len-1] = '\0';
-            aws_root_ca_pem = root_ca;
-            
-            fclose(file);
-        }
-    }else{
-        return false;
-    }
-    ESP_LOGI(TAG, "loading PRIVATE_KEY");
-    file = fopen(AWS_PRIVATE_KEY_FILE, "r");
-    if(file){
-        if(!aws_private_key_pem){
-            len = storage_adapter::get_file_size(AWS_PRIVATE_KEY_FILE);
-            char *private_key = new char[len]();
-            memset(private_key, 0, len);
-            char buffer[32];
-            while(fgets(buffer, 32 , file)){
-                strcat(private_key, buffer);
-            }
-            private_key[len-1] = '\0';
-            aws_private_key_pem = private_key;
-            
-            fclose(file);
-        }
-    }else{
-        return false;
-    }
+    aws_root_ca_pem = load_cert(sm->get(AWS, AWS_ROOT_CA)->get_string_value());
+
     ESP_LOGI(TAG, "loading CERT_PEM");
-    file = fopen(AWS_CERT_PEM_FILE, "r");
-    if(file){
-        if(!aws_cert_pem){
-            len = storage_adapter::get_file_size(AWS_CERT_PEM_FILE);
-            char *cert_key = new char[len]();
-            memset(cert_key, 0, len);
-            char buffer[32];
-            while(fgets(buffer, 32 , file)){
-                strcat(cert_key, buffer);
-            }
-            cert_key[len-1] = '\0';
-            aws_cert_pem = cert_key;
-            
-            fclose(file);
-        }
-    }else{
-        return false;
-    }
+    aws_cert_pem = load_cert(sm->get(AWS, AWS_CLIENT_CERT)->get_string_value());
+    
     ESP_LOGI(TAG, "loading GGCore CA CERT");
-    file = fopen(AWS_GGCORE_CA_PEM_FILE, "r");
-    if(file){
-        if(!ggcore_ca_cert){
-            len = storage_adapter::get_file_size(AWS_GGCORE_CA_PEM_FILE);
-            char *cert_key = new char[len]();
-            memset(cert_key, 0, len);
-            char buffer[32];
-            while(fgets(buffer, 32 , file)){
-                strcat(cert_key, buffer);
-            }
-            cert_key[len-1] = '\0';
-            ggcore_ca_cert = cert_key;
-            
-            fclose(file);
-        }
-    }else{
-        return false;
-    }
+    aws_group_ca_cert = load_cert(sm->get(AWS, AWS_GROUP_CA)->get_string_value());
+    
+    ESP_LOGI(TAG, "loading PRIVATE_KEY");
+    aws_private_key_pem = load_cert(sm->get(AWS, AWS_PRVT_KEY)->get_string_value());
+   
     ESP_LOGI(TAG, "loading finished");
-    return true;
 }
 
 void aws_adapter::init(){
@@ -127,7 +83,7 @@ void aws_adapter::init(){
     mqttInitParams.pHostURL = HOST_URL2;
     mqttInitParams.port = 8883;
 
-    mqttInitParams.pRootCALocation = ggcore_ca_cert;
+    mqttInitParams.pRootCALocation = aws_group_ca_cert;
     //mqttInitParams.pRootCALocation = aws_root_ca_pem;
     mqttInitParams.pDeviceCertLocation = aws_cert_pem;
     mqttInitParams.pDevicePrivateKeyLocation = aws_private_key_pem;
@@ -194,14 +150,17 @@ bool aws_adapter::send_test_message(){
     return rc==SUCCESS;
 }
 
-void aws_adapter::mbedtls_connect(){
+bool aws_adapter::connect(bool gg, const char* port){
     load_certs();
     char buf[512];
     int ret, flags, len; 
 
     mbedtls_ssl_init(&ssl);
-    mbedtls_x509_crt_init(&cacert);
-    mbedtls_x509_crt_init(&groupcacert);
+    if(gg){
+        mbedtls_x509_crt_init(&groupcacert);
+    }else{
+        mbedtls_x509_crt_init(&cacert);
+    }
     mbedtls_x509_crt_init(&client_cert);
     mbedtls_pk_init(&prvkey);
     mbedtls_ctr_drbg_init(&ctr_drbg);
@@ -211,48 +170,56 @@ void aws_adapter::mbedtls_connect(){
 
     mbedtls_entropy_init(&entropy);
     if((ret = mbedtls_ctr_drbg_seed(&ctr_drbg, mbedtls_entropy_func, &entropy,
-                                    NULL, 0)) != 0)
+                NULL, 0)) != 0)
     {
         ESP_LOGE(TAG, "mbedtls_ctr_drbg_seed returned %d", ret);
+        return false;
         abort();
+    }
+
+    if(gg){
+        ESP_LOGI(TAG, "Parsing the Group CA certificate...");
+        ret = mbedtls_x509_crt_parse(&groupcacert, (const unsigned char*)aws_group_ca_cert,
+                                storage_adapter::get_file_size(sm->get(AWS, AWS_GROUP_CA)->get_string_value().c_str()));
+        if(ret < 0)
+        {
+            ESP_LOGE(TAG, "mbedtls_x509_crt_parse returned -0x%x\n\n", -ret);
+            return false;
+            abort();
+        }
+        printCertInfo(&groupcacert);
+    }else{
+        ESP_LOGI(TAG, "Parsing the root CA certificate...");
+        ret = mbedtls_x509_crt_parse(&cacert, (const unsigned char*)aws_root_ca_pem,
+                storage_adapter::get_file_size(sm->get(AWS, AWS_ROOT_CA)->get_string_value().c_str()));
+        
+        if(ret < 0)
+        {
+            ESP_LOGE(TAG, "mbedtls_x509_crt_parse returned -0x%x\n\n", -ret);
+            return false;
+            abort();
+        }
+        printCertInfo(&cacert);
     }
     
-    ESP_LOGI(TAG, "Loading the CA root certificate...");
-    ret = mbedtls_x509_crt_parse(&cacert, (const unsigned char*)aws_root_ca_pem,
-                                 storage_adapter::get_file_size(AWS_ROOT_CA_PEM_FILE));
-    
-    if(ret < 0)
-    {
-        ESP_LOGE(TAG, "mbedtls_x509_crt_parse returned -0x%x\n\n", -ret);
-        abort();
-    }
-    printCertInfo(&cacert);
 
-    ESP_LOGI(TAG, "Loading the Group CA root certificate...");
-    ret = mbedtls_x509_crt_parse(&groupcacert, (const unsigned char*)ggcore_ca_cert,
-                                 storage_adapter::get_file_size(AWS_GGCORE_CA_PEM_FILE));
-    if(ret < 0)
-    {
-        ESP_LOGE(TAG, "mbedtls_x509_crt_parse returned -0x%x\n\n", -ret);
-        abort();
-    }
-    printCertInfo(&groupcacert);
-
-    ESP_LOGI(TAG, "Loading the client certificate...");
+    ESP_LOGI(TAG, "Parsing the client certificate...");
     ret = mbedtls_x509_crt_parse(&client_cert, (const unsigned char*)aws_cert_pem,
-                                 storage_adapter::get_file_size(AWS_CERT_PEM_FILE));
+                storage_adapter::get_file_size(sm->get(AWS, AWS_CLIENT_CERT)->get_string_value().c_str()));
     if(ret < 0)
     {
         ESP_LOGE(TAG, "mbedtls_x509_crt_parse returned -0x%x\n\n", -ret);
+        return false;
         abort();
     }
 
-    ESP_LOGI(TAG, "Loading the client private key...");
+    ESP_LOGI(TAG, "Parsing the client private key...");
     ret = mbedtls_pk_parse_key(&prvkey, (const unsigned char*)aws_private_key_pem,
-                                 storage_adapter::get_file_size(AWS_PRIVATE_KEY_FILE), NULL, 0);
+                storage_adapter::get_file_size(sm->get(AWS, AWS_PRVT_KEY)->get_string_value().c_str()), NULL, 0);
     if(ret < 0)
     {
         ESP_LOGE(TAG, "mbedtls_pk_parse_key returned -0x%x\n\n", -ret);
+        return false;
         abort();
     }
 
@@ -261,22 +228,27 @@ void aws_adapter::mbedtls_connect(){
     if((ret = mbedtls_ssl_set_hostname(&ssl, NULL)) != 0)
     {
         ESP_LOGE(TAG, "mbedtls_ssl_set_hostname returned -0x%x", -ret);
+        return false;
         abort();
     }
 
     ESP_LOGI(TAG, "Setting up the SSL/TLS structure...");
 
     if((ret = mbedtls_ssl_config_defaults(&conf,
-                                          MBEDTLS_SSL_IS_CLIENT,
-                                          MBEDTLS_SSL_TRANSPORT_STREAM,
-                                          MBEDTLS_SSL_PRESET_DEFAULT)) != 0)
+                MBEDTLS_SSL_IS_CLIENT, MBEDTLS_SSL_TRANSPORT_STREAM,
+                MBEDTLS_SSL_PRESET_DEFAULT)) != 0)
     {
         ESP_LOGE(TAG, "mbedtls_ssl_config_defaults returned %d", ret);
     }
 
     mbedtls_ssl_conf_authmode(&conf, MBEDTLS_SSL_VERIFY_REQUIRED);
-    mbedtls_ssl_conf_ca_chain(&conf, &cacert, NULL);
-    //mbedtls_ssl_conf_ca_chain(&conf, &groupcacert, NULL);
+
+    if(gg){
+        mbedtls_ssl_conf_ca_chain(&conf, &groupcacert, NULL);
+    }else{
+        mbedtls_ssl_conf_ca_chain(&conf, &cacert, NULL);
+    }
+
     mbedtls_ssl_conf_own_cert(&conf, &client_cert, &prvkey);
     mbedtls_ssl_conf_rng(&conf, mbedtls_ctr_drbg_random, &ctr_drbg);
 
@@ -285,15 +257,29 @@ void aws_adapter::mbedtls_connect(){
     if ((ret = mbedtls_ssl_setup(&ssl, &conf)) != 0)
     {
         ESP_LOGE(TAG, "mbedtls_ssl_setup returned -0x%x\n\n", -ret);
+        return false;
     }
 
     mbedtls_net_init(&server_fd);
-    ESP_LOGI(TAG, "Connecting to %s:%s...", WEB_SERVER, WEB_PORT);
+    if(gg){
+        ESP_LOGI(TAG, "Connecting to %s:%s...", 
+            sm->get(AWS, AWS_GG_ENDPOINT)->get_string_value().c_str(), port);
+        ret = mbedtls_net_connect(&server_fd, 
+            sm->get(AWS, AWS_GG_ENDPOINT)->get_string_value().c_str(), 
+            port, MBEDTLS_NET_PROTO_TCP);
+    }else{
+        ESP_LOGI(TAG, "Connecting to %s:%s...", 
+            sm->get(AWS, AWS_ENDPOINT)->get_string_value().c_str(), port);
+        ret = mbedtls_net_connect(&server_fd, 
+            sm->get(AWS, AWS_ENDPOINT)->get_string_value().c_str(), 
+            port, MBEDTLS_NET_PROTO_TCP);
+    }
+    
 
-    if ((ret = mbedtls_net_connect(&server_fd, WEB_SERVER,
-                                    WEB_PORT, MBEDTLS_NET_PROTO_TCP)) != 0)
+    if (ret != 0)
     {
         ESP_LOGE(TAG, "mbedtls_net_connect returned -%x", -ret);
+        return false;
     }
 
     ESP_LOGI(TAG, "Connected.");
@@ -307,6 +293,7 @@ void aws_adapter::mbedtls_connect(){
         if (ret != MBEDTLS_ERR_SSL_WANT_READ && ret != MBEDTLS_ERR_SSL_WANT_WRITE)
         {
             ESP_LOGE(TAG, "mbedtls_ssl_handshake returned -0x%x", -ret);
+            return false;
         }
     }
     
@@ -319,12 +306,14 @@ void aws_adapter::mbedtls_connect(){
         bzero(buf, sizeof(buf));
         mbedtls_x509_crt_verify_info(buf, sizeof(buf), "  ! ", flags);
         ESP_LOGW(TAG, "verification info: %s", buf);
+        return false;
     }
     else {
         ESP_LOGI(TAG, "Certificate verified.");
     }
 
     ESP_LOGI(TAG, "Cipher suite is %s", mbedtls_ssl_get_ciphersuite(&ssl));
+    return true;
 }
 
 
@@ -337,7 +326,7 @@ void aws_adapter::printCertField(mbedtls_x509_name *field){
     while(1){
         strncpy(buf_val, (const char*)field->val.p, field->val.len);
         buf_val[field->val.len] = '\0';
-        ESP_LOGI(TAG, "subject: %s", buf_val);
+        ESP_LOGI(TAG, "%s", buf_val);
         
         if(field->next != NULL){
             field = field->next;
@@ -352,7 +341,7 @@ void aws_adapter::printCertInfo(mbedtls_x509_crt* cert){
     printCertField(&cert->subject);
 }
 
-void aws_adapter::mbedtls_disconnect(){
+void aws_adapter::disconnect(){
     char buf[512];
     int ret = 0; 
 
@@ -366,19 +355,19 @@ void aws_adapter::mbedtls_disconnect(){
         mbedtls_strerror(ret, buf, 100);
         ESP_LOGE(TAG, "Last error was: -0x%x - %s", -ret, buf);
     }
-
-    //putchar('\n'); // JSON output doesn't have a newline at end
-
-    static int request_count;
-    ESP_LOGI(TAG, "Completed %d requests", ++request_count);
 }
 
 string aws_adapter::ggd(){
     char buf[512];
     int ret, flags, len; 
-    static const char *REQUEST = "GET /greengrass/discover/thing/ESP32_3C-71-BF-96-DF-C0 HTTP/1.1\r\n\r\n";
+    string thing_name = sm->get(AWS,AWS_THING_NAME)->get_string_value();
+    string req = "GET /greengrass/discover/thing/" + thing_name + " HTTP/1.1\r\n\r\n";
+    static const char *REQUEST = req.c_str();
    
-    mbedtls_connect();
+    if(!connect(false, sm->get(AWS, AWS_GGD_PORT)->get_string_value().c_str())){
+        ESP_LOGE(TAG, "Could not connect to AWS-IoT");
+        return string("");
+    }
 
     ESP_LOGI(TAG, "Writing HTTP request...");
 
@@ -436,21 +425,17 @@ string aws_adapter::ggd(){
 
         len = ret;
         ESP_LOGD(TAG, "%d bytes read", len);
-        /* Print response directly to stdout as it is read */
-        //for(int i = 0; i < len; i++) {
-        //    putchar(buf[i]);
-        //}
     } while(1);
 
     ESP_LOGI(TAG, "HTTPS: %s", res.c_str());
-    mbedtls_disconnect();
+    disconnect();
     
     return res;
 }
 
 void aws_adapter::test_connect(){
-    mbedtls_connect();
-    mbedtls_disconnect();
+    connect(true, "8883");
+    disconnect();
 }
 
 
@@ -509,11 +494,38 @@ aws_GGGroups* aws_adapter::parse_ggd(string json_string){
 void aws_task::connect_task(void *param){
     ESP_LOGI(TAG, "Initializing AWS");
     aws_adapter aws;
+    aws.set_settings_manager(sm);
+    
+    bool gg_ok = aws.connect(true, sm->get(AWS,AWS_MQTT_PORT)->get_string_value().c_str());
+    if(gg_ok){
+        ESP_LOGI(TAG, "Connected to Greengrass-Core: %s", sm->get(AWS,AWS_GG_ENDPOINT)->get_string_value().c_str());
+    }else{
+        ESP_LOGE(TAG, "Connection to Greengrass-Core failed, performing Greengrass-Discovery");
+        string ggd_res = aws.ggd();
+        if(!ggd_res.empty()){
+            aws_GGGroups* groups = aws.parse_ggd(ggd_res);
+            FILE* f = fopen(sm->get(AWS,AWS_GROUP_CA)->get_string_value().c_str(), "w");
+            fprintf(f, groups->groups[0]->cas[0].c_str());
+            fclose(f);
+            ESP_LOGI(TAG, "new group CA file downloaded");
+            sm->get(AWS,AWS_GG_ENDPOINT)->set_string_value(groups->groups[0]->cores[0]->connectivity[0]->hostAddress);
+            ESP_LOGI(TAG, "Greengrass-Endpoint updated");
+            sm->save();
+            ESP_LOGI(TAG, "rebooting...");
+            esp_restart();
+        }else{
+            ESP_LOGE(TAG, "Greengrass-Discovery failed, connecting to AWS-IoT");
+            aws.connect(false, sm->get(AWS,AWS_MQTT_PORT)->get_string_value().c_str());
+        }
+    }
+
+    aws.disconnect();
+
     //aws.load_certs();
     //aws.init();
     //aws.start();
     //aws.send_test_message();
-    aws.test_connect();
+    //aws.test_connect();
     //string ggd_res = aws.ggd();
     //aws_GGGroups* groups = aws.parse_ggd(ggd_res);
     
@@ -524,8 +536,11 @@ void aws_task::connect_task(void *param){
     while(1);
 }
 
+aws_task::aws_task(settings_manager* sett_man){
+    sm = sett_man;
+}
+
 void aws_task::run(){
     TaskHandle_t xHandle = NULL;
     xTaskCreate( connect_task, "AWS TASK", 8196, NULL, tskIDLE_PRIORITY, &xHandle );
-
 }
