@@ -179,6 +179,7 @@ void onewire_adapter::read_data(){
     for(int i = 0; i<num_devices; i++){
         //ESP_LOGI(TAG, "Reading device...");
         portENTER_CRITICAL(&myMutex);
+        reset_pulse();
         send_byte(0x55);
         onewire_addr_t addr = devices[i]->get_addr();
         //print_addr(addr);
@@ -191,7 +192,7 @@ void onewire_adapter::read_data(){
             d.x[j] = read_byte();
             //ESP_LOGI(TAG, "%x", d.x[j]);
         }
-        reset_pulse();
+        //reset_pulse();
         portEXIT_CRITICAL(&myMutex);
         devices[i]->set_data(d);
         //ESP_LOGI(TAG, "%f", devices[i]->get_temperature());
@@ -212,11 +213,11 @@ void onewire_logger::log_task(void *param){
 
 void onewire_logger::run(onewire_adapter* ow){
     TaskHandle_t xHandle = NULL;
-    xTaskCreate( log_task, "ONEWIRE LOGGER", 2048, ow, tskIDLE_PRIORITY, &xHandle );
+    xTaskCreate( log_task, "ONEWIRE LOGGER", 2048, ow, tskIDLE_PRIORITY+1, &xHandle );
 }
 
 
-void onewire_adapter::get_log_elements(list <log_element*>* l){
+void onewire_adapter::get_log_elements(std::list <log_element*>* l){
     for(uint8_t i = 0; i<num_devices; i++){
         log_element* e = new log_element("DS18B20", DS18B20, devices[i]);
         l->push_back(e);

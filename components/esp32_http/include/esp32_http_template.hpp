@@ -2,7 +2,7 @@
 #define ESP32_HTTP_TEMPLATE
 
 #include <stdio.h>
-#include <string>
+#include <string.h>
 #include <esp_log.h>
 #include "esp32_settings.hpp"
 

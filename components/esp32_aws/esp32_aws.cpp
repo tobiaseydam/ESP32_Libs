@@ -9,6 +9,7 @@
 #include "esp_event_loop.h"
 
 #include "esp32_storage.hpp"
+#include "esp32_mqtt.hpp"
 
 #include "lwip/err.h"
 #include "lwip/sockets.h"
@@ -27,8 +28,8 @@
 #include "mbedtls/certs.h"
 
 #include "cJSON.h"
-
-settings_manager* aws_task::sm;
+/*
+#include "mqtt_client.h"
 
 const char* aws_adapter::load_cert(string filename){
     char* temp = NULL;
@@ -69,85 +70,6 @@ void aws_adapter::load_certs(){
     aws_private_key_pem = load_cert(sm->get(AWS, AWS_PRVT_KEY)->get_string_value());
    
     ESP_LOGI(TAG, "loading finished");
-}
-
-void aws_adapter::init(){
-    ESP_LOGI(TAG, "AWS IoT init");
-    client = new AWS_IoT_Client;
-    mqttInitParams = iotClientInitParamsDefault;
-    connectParams = iotClientConnectParamsDefault;
-
-    ESP_LOGI(TAG, "AWS IoT SDK Version %d.%d.%d-%s", VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH, VERSION_TAG);
-    
-    mqttInitParams.enableAutoReconnect = false;
-    mqttInitParams.pHostURL = HOST_URL2;
-    mqttInitParams.port = 8883;
-
-    mqttInitParams.pRootCALocation = aws_group_ca_cert;
-    //mqttInitParams.pRootCALocation = aws_root_ca_pem;
-    mqttInitParams.pDeviceCertLocation = aws_cert_pem;
-    mqttInitParams.pDevicePrivateKeyLocation = aws_private_key_pem;
-
-    mqttInitParams.mqttCommandTimeout_ms = 20000;
-    mqttInitParams.tlsHandshakeTimeout_ms = 5000;
-    mqttInitParams.isSSLHostnameVerify = true;
-
-    connectParams.keepAliveIntervalInSec = 10;
-    connectParams.isCleanSession = true;
-    connectParams.MQTTVersion = MQTT_3_1_1;
-    connectParams.pClientID = "1943708d0d";
-    connectParams.clientIDLen = 10;
-    connectParams.isWillMsgPresent = false;
-    
-}
-
-
-void aws_adapter::start(){
-    IoT_Error_t rc = FAILURE;
-
-    rc = aws_iot_mqtt_init(client, &mqttInitParams);
-    if(SUCCESS != rc) {
-        ESP_LOGE(TAG, "aws_iot_mqtt_init returned error : %d ", rc);
-        abort();
-    }
-
-    ESP_LOGI(TAG, "Connecting to AWS...");
-    do {
-        rc = aws_iot_mqtt_connect(client, &connectParams);
-        if(SUCCESS != rc) {
-            ESP_LOGE(TAG, "Error(%d) connecting to %s:%d", rc, mqttInitParams.pHostURL, mqttInitParams.port);
-            vTaskDelay(1000 / portTICK_RATE_MS);
-        }
-    } while(SUCCESS != rc);
-
-    rc = aws_iot_mqtt_autoreconnect_set_status(client, true);
-    if(SUCCESS != rc) {
-        ESP_LOGE(TAG, "Unable to set Auto Reconnect to true - %d", rc);
-        abort();
-    }
-}
-
-
-bool aws_adapter::send_test_message(){
-    ESP_LOGI(TAG, "Sending test message");
-    
-    char cPayload[100];
-    
-    sprintf(cPayload, "{\"Hello\": \"World\"}");
-    string p = "{\"Hello\": \"World\"}";
-    IoT_Error_t rc = FAILURE;
-    const char *TOPIC = "$aws/things/ESP32_3C-71-BF-96-DF-C0/test";
-    const int TOPIC_LEN = strlen(TOPIC);
-    
-    IoT_Publish_Message_Params paramsQOS0;
-    paramsQOS0.qos = QOS0;
-    paramsQOS0.payload = (void *)p.c_str();
-    paramsQOS0.payloadLen = p.length();
-    paramsQOS0.isRetained = 0;
-
-    rc = aws_iot_mqtt_publish(client, TOPIC, TOPIC_LEN, &paramsQOS0);
-
-    return rc==SUCCESS;
 }
 
 bool aws_adapter::connect(bool gg, const char* port){
@@ -261,6 +183,7 @@ bool aws_adapter::connect(bool gg, const char* port){
     }
 
     mbedtls_net_init(&server_fd);
+    const char* host = "a38mp4h6o8iiol-ats.iot.us-east-1.amazonaws.com";
     if(gg){
         ESP_LOGI(TAG, "Connecting to %s:%s...", 
             sm->get(AWS, AWS_GG_ENDPOINT)->get_string_value().c_str(), port);
@@ -269,10 +192,11 @@ bool aws_adapter::connect(bool gg, const char* port){
             port, MBEDTLS_NET_PROTO_TCP);
     }else{
         ESP_LOGI(TAG, "Connecting to %s:%s...", 
-            sm->get(AWS, AWS_ENDPOINT)->get_string_value().c_str(), port);
+            host, port);
+            //sm->get(AWS, AWS_ENDPOINT)->get_string_value().c_str(), port);
         ret = mbedtls_net_connect(&server_fd, 
-            sm->get(AWS, AWS_ENDPOINT)->get_string_value().c_str(), 
-            port, MBEDTLS_NET_PROTO_TCP);
+            host, port, MBEDTLS_NET_PROTO_TCP);
+            //sm->get(AWS, AWS_ENDPOINT)->get_string_value().c_str(), 
     }
     
 
@@ -300,9 +224,9 @@ bool aws_adapter::connect(bool gg, const char* port){
     ESP_LOGI(TAG, "Verifying peer X.509 certificate...");
 
     if ((flags = mbedtls_ssl_get_verify_result(&ssl)) != 0)
-    {
+    {*/
         /* In real life, we probably want to close connection if ret != 0 */
-        ESP_LOGW(TAG, "Failed to verify peer certificate!");
+        /*ESP_LOGW(TAG, "Failed to verify peer certificate!");
         bzero(buf, sizeof(buf));
         mbedtls_x509_crt_verify_info(buf, sizeof(buf), "  ! ", flags);
         ESP_LOGW(TAG, "verification info: %s", buf);
@@ -315,7 +239,6 @@ bool aws_adapter::connect(bool gg, const char* port){
     ESP_LOGI(TAG, "Cipher suite is %s", mbedtls_ssl_get_ciphersuite(&ssl));
     return true;
 }
-
 
 void aws_adapter::printCertField(mbedtls_x509_name *field){
     char buf_val[128];
@@ -433,6 +356,91 @@ string aws_adapter::ggd(){
     return res;
 }
 
+string aws_adapter::mqtt_connect(){
+    char buf[512];
+    int ret, flags, len; 
+    mqtt_message_connect m("sdfg",false, eQOS0, false, true, 60);
+    static const uint8_t *REQUEST = m.get_message();
+   
+    if(!connect(false, "8883")){
+        ESP_LOGE(TAG, "Could not connect to AWS-IoT");
+        return string("");
+    }
+
+    ESP_LOGI(TAG, "Writing HTTP request...");
+
+    size_t written_bytes = 0;
+    do {
+        ret = mbedtls_ssl_write(&ssl,
+                                (const unsigned char*) REQUEST + written_bytes,
+                                m.get_length()+1 - written_bytes);
+        if (ret >= 0) {
+            ESP_LOGI(TAG, "%d bytes written", ret);
+            written_bytes += ret;
+        } else if (ret != MBEDTLS_ERR_SSL_WANT_WRITE && ret != MBEDTLS_ERR_SSL_WANT_READ) {
+            ESP_LOGE(TAG, "mbedtls_ssl_write returned -0x%x", -ret);
+        }
+    } while(written_bytes < m.get_length()+1);
+
+    ESP_LOGI(TAG, "Reading HTTP response...");
+    string res = "";
+    do
+    {
+        len = sizeof(buf) - 1;
+        bzero(buf, sizeof(buf));
+        ret = mbedtls_ssl_read(&ssl, (unsigned char *)buf, len);
+        ESP_LOGI(TAG, "res: -0x%x", -ret);
+        
+        if(ret == 511) {
+            res += buf;
+        }
+
+        if(ret == 246) {
+            ret = 0;
+            res += buf;
+            break;
+        }
+
+        if(ret == MBEDTLS_ERR_SSL_WANT_READ || ret == MBEDTLS_ERR_SSL_WANT_WRITE)
+            continue;
+
+        if(ret == MBEDTLS_ERR_SSL_PEER_CLOSE_NOTIFY) {
+            ret = 0;
+            break;
+        }
+
+        if(ret < 0)
+        {
+            ESP_LOGE(TAG, "mbedtls_ssl_read returned -0x%x", -ret);
+            break;
+        }
+
+        if(ret == 0)
+        {
+            ESP_LOGI(TAG, "connection closed");
+            break;
+        }
+
+        len = ret;
+        ESP_LOGI(TAG, "%d bytes read", len);
+        
+        uint16_t i = 0;
+        while(i<=len){
+            ESP_LOGI("test", "%d - 0x%x - %c", i, buf[i], buf[i]);
+            i++;
+        }
+
+
+    } while(1);
+
+    ESP_LOGI(TAG, "HTTPS: %s", res.c_str());
+    disconnect();
+    
+    
+
+    return res;
+}
+
 void aws_adapter::test_connect(){
     connect(true, "8883");
     disconnect();
@@ -492,18 +500,21 @@ aws_GGGroups* aws_adapter::parse_ggd(string json_string){
 }
 
 void aws_task::connect_task(void *param){
+    aws_adapter* aws = (aws_adapter*)param;
+    settings_manager* sm = aws->get_settings_manager();
     ESP_LOGI(TAG, "Initializing AWS");
-    aws_adapter aws;
-    aws.set_settings_manager(sm);
     
-    bool gg_ok = aws.connect(true, sm->get(AWS,AWS_MQTT_PORT)->get_string_value().c_str());
+    //aws->set_settings_manager(sm);
+    
+    bool gg_ok = aws->connect(true, sm->get(AWS,AWS_MQTT_PORT)->get_string_value().c_str());
     if(gg_ok){
         ESP_LOGI(TAG, "Connected to Greengrass-Core: %s", sm->get(AWS,AWS_GG_ENDPOINT)->get_string_value().c_str());
+        aws->gg_avl = true;
     }else{
         ESP_LOGE(TAG, "Connection to Greengrass-Core failed, performing Greengrass-Discovery");
-        string ggd_res = aws.ggd();
+        string ggd_res = aws->ggd();
         if(!ggd_res.empty()){
-            aws_GGGroups* groups = aws.parse_ggd(ggd_res);
+            aws_GGGroups* groups = aws->parse_ggd(ggd_res);
             FILE* f = fopen(sm->get(AWS,AWS_GROUP_CA)->get_string_value().c_str(), "w");
             fprintf(f, groups->groups[0]->cas[0].c_str());
             fclose(f);
@@ -515,11 +526,11 @@ void aws_task::connect_task(void *param){
             esp_restart();
         }else{
             ESP_LOGE(TAG, "Greengrass-Discovery failed, connecting to AWS-IoT");
-            aws.connect(false, sm->get(AWS,AWS_MQTT_PORT)->get_string_value().c_str());
+            aws->connect(false, sm->get(AWS,AWS_MQTT_PORT)->get_string_value().c_str());
         }
     }
 
-    aws.disconnect();
+    //aws->disconnect();
 
     //aws.load_certs();
     //aws.init();
@@ -533,14 +544,260 @@ void aws_task::connect_task(void *param){
     //fprintf(f, groups->groups[0]->cas[0].c_str());
     //fclose(f);
 
-    while(1);
+    vTaskDelete(NULL);
+}
+
+esp_err_t aws_adapter::mqtt_event_handler(esp_mqtt_event_handle_t event){
+    esp_mqtt_client_handle_t client = event->client;
+    int msg_id;
+    // your_context_t *context = event->context;
+    switch (event->event_id) {
+        case MQTT_EVENT_CONNECTED:
+            ESP_LOGI(TAG, "MQTT_EVENT_CONNECTED");
+            msg_id = esp_mqtt_client_subscribe(client, "/topic/qos0", 0);
+            ESP_LOGI(TAG, "sent subscribe successful, msg_id=%d", msg_id);
+
+            //msg_id = esp_mqtt_client_subscribe(client, "/topic/qos1", 1);
+            //ESP_LOGI(TAG, "sent subscribe successful, msg_id=%d", msg_id);
+
+            //msg_id = esp_mqtt_client_unsubscribe(client, "/topic/qos1");
+            //ESP_LOGI(TAG, "sent unsubscribe successful, msg_id=%d", msg_id);
+            break;
+        case MQTT_EVENT_DISCONNECTED:
+            ESP_LOGI(TAG, "MQTT_EVENT_DISCONNECTED");
+            break;
+
+        case MQTT_EVENT_SUBSCRIBED:
+            ESP_LOGI(TAG, "MQTT_EVENT_SUBSCRIBED, msg_id=%d", event->msg_id);
+            msg_id = esp_mqtt_client_publish(client, "/topic/qos0", "data", 0, 0, 0);
+            ESP_LOGI(TAG, "sent publish successful, msg_id=%d", msg_id);
+            break;
+        case MQTT_EVENT_UNSUBSCRIBED:
+            ESP_LOGI(TAG, "MQTT_EVENT_UNSUBSCRIBED, msg_id=%d", event->msg_id);
+            break;
+        case MQTT_EVENT_PUBLISHED:
+            ESP_LOGI(TAG, "MQTT_EVENT_PUBLISHED, msg_id=%d", event->msg_id);
+            break;
+        case MQTT_EVENT_DATA:
+            ESP_LOGI(TAG, "MQTT_EVENT_DATA");
+            printf("TOPIC=%.*s\r\n", event->topic_len, event->topic);
+            printf("DATA=%.*s\r\n", event->data_len, event->data);
+            break;
+        case MQTT_EVENT_ERROR:
+            ESP_LOGI(TAG, "MQTT_EVENT_ERROR");
+            break;
+        default:
+            ESP_LOGI(TAG, "Other event id:%d", event->event_id);
+            break;
+    }
+    return ESP_OK;
+}
+
+//aws_adapter* aws_task::aws = NULL;
+
+void aws_task::iot_subscribe_callback_handler(AWS_IoT_Client *pClient, char *topicName, uint16_t topicNameLen,
+                                    IoT_Publish_Message_Params *params, void *pData) {
+    ESP_LOGI(TAG, "Subscribe callback");
+    ESP_LOGI(TAG, "%.*s\t%.*s", topicNameLen, topicName, (int) params->payloadLen, (char *)params->payload);
+}
+
+void aws_task::run_aws_task(void *param){
+    aws_adapter* aws = (aws_adapter*)param;
+    aws->load_certs();
+    settings_manager* sm = aws->get_settings_manager();
+
+
+    int32_t i = 0;
+
+    IoT_Error_t rc = FAILURE;
+
+    AWS_IoT_Client client;
+    memset(&client, '/0', sizeof(client));
+
+    IoT_Client_Init_Params mqttInitParams;
+    memset(&mqttInitParams, '/0', sizeof(mqttInitParams));
+    mqttInitParams = iotClientInitParamsDefault;
+
+    IoT_Client_Connect_Params connectParams;
+    memset(&connectParams, '/0', sizeof(connectParams)); 
+    connectParams= iotClientConnectParamsDefault;
+
+    IoT_Publish_Message_Params paramsQOS0;
+    IoT_Publish_Message_Params paramsQOS1;
+
+    ESP_LOGI(TAG, "AWS IoT SDK Version %d.%d.%d-%s", VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH, VERSION_TAG);
+
+    mqttInitParams.enableAutoReconnect = false; // We enable this later below
+    if(aws->gg_avl){
+        mqttInitParams.pHostURL = (char*)sm->get(AWS, AWS_GG_ENDPOINT)->get_string_value().c_str();
+    }else{
+        //mqttInitParams.pHostURL = (char*)sm->get(AWS, AWS_ENDPOINT)->get_string_value().c_str();
+        mqttInitParams.pHostURL = "a38mp4h6o8iiol-ats.iot.us-east-1.amazonaws.com";
+    }
+    mqttInitParams.port = 8883;//atoi(sm->get(AWS, AWS_MQTT_PORT)->get_string_value().c_str());
+
+    if(aws->gg_avl){
+        mqttInitParams.pRootCALocation = aws->aws_group_ca_cert;
+    }else{
+        mqttInitParams.pRootCALocation = aws->aws_root_ca_pem;
+    }
+    mqttInitParams.pDeviceCertLocation = aws->aws_cert_pem;
+    mqttInitParams.pDevicePrivateKeyLocation = aws->aws_private_key_pem;
+
+    mqttInitParams.mqttCommandTimeout_ms = 20000;
+    mqttInitParams.tlsHandshakeTimeout_ms = 10000;
+    mqttInitParams.isSSLHostnameVerify = false;
+    mqttInitParams.disconnectHandler = NULL;
+    mqttInitParams.disconnectHandlerData = NULL;
+
+
+    rc = aws_iot_mqtt_init(&client, &mqttInitParams);
+    if(SUCCESS != rc) {
+        ESP_LOGE(TAG, "aws_iot_mqtt_init returned error : %d ", rc);
+        abort();
+    }
+
+    connectParams.keepAliveIntervalInSec = 600;
+    connectParams.isCleanSession = true;
+    connectParams.MQTTVersion = MQTT_3_1_1;
+    *//* Client ID is set in the menuconfig of the example *//*
+    connectParams.pClientID = "ESP32_3C-71-BF-96-DF-C0";//sm->get(AWS, AWS_THING_NAME)->get_string_value().c_str();
+    connectParams.clientIDLen = (uint16_t)sm->get(AWS, AWS_THING_NAME)->get_string_value().length();
+    connectParams.isWillMsgPresent = false;
+    
+    ESP_LOGI(TAG, "%s - %d" , connectParams.pClientID, connectParams.clientIDLen);
+
+    ESP_LOGI(TAG, "Connecting to AWS...");
+    do {
+        rc = aws_iot_mqtt_connect(&client, &connectParams);
+        if(SUCCESS != rc) {
+            ESP_LOGE(TAG, "Error(%d) connecting to %s:%d", rc, mqttInitParams.pHostURL, mqttInitParams.port);
+            vTaskDelay(1000 / portTICK_RATE_MS);
+        }
+    } while(SUCCESS != rc);
+
+    rc = aws_iot_mqtt_autoreconnect_set_status(&client, true);
+    if(SUCCESS != rc) {
+        ESP_LOGE(TAG, "Unable to set Auto Reconnect to true - %d", rc);
+        abort();
+    }
+
+    string topic = "$aws/things/" + sm->get(AWS, AWS_THING_NAME)->get_string_value() + "/shadow/update";
+
+    const char *TOPIC = topic.c_str();//"$aws/things/ESP32_3C-71-BF-96-DF-C0/shadow/update";
+    const int TOPIC_LEN = strlen(TOPIC);
+
+    ESP_LOGI(TAG, "Subscribing...");
+    rc = aws_iot_mqtt_subscribe(&client, TOPIC, TOPIC_LEN, QOS0, iot_subscribe_callback_handler, NULL);
+    if(SUCCESS != rc) {
+        ESP_LOGE(TAG, "Error subscribing : %d ", rc);
+        abort();
+    }
+*/
+    /*sprintf(cPayload, "%s : %d ", "hello from SDK", i);
+
+    *//*
+
+    while((NETWORK_ATTEMPTING_RECONNECT == rc || NETWORK_RECONNECTED == rc || SUCCESS == rc)) {
+
+        //Max time the yield function will wait for read messages
+        rc = aws_iot_mqtt_yield(&client, 100);
+        if(NETWORK_ATTEMPTING_RECONNECT == rc) {
+            // If the client is attempting to reconnect we will skip the rest of the loop.
+            continue;
+        }
+
+        ESP_LOGI(TAG, "Stack remaining for task '%s' is %d bytes", pcTaskGetTaskName(NULL), uxTaskGetStackHighWaterMark(NULL));
+        vTaskDelay(1000 / portTICK_RATE_MS);
+
+        if(aws->pl->has_next_msg()){
+            char cPayload[1024];
+            memset(&cPayload, '/0', strlen(cPayload)); 
+            sprintf(cPayload, "%s", aws->pl->get_next_msg().c_str());
+            paramsQOS0.qos = QOS0;
+            paramsQOS0.payload = (void *) cPayload;
+            paramsQOS0.payloadLen = strlen(cPayload);
+            paramsQOS0.isRetained = 0;
+            rc = aws_iot_mqtt_publish(&client, TOPIC, TOPIC_LEN, &paramsQOS0);
+        }
+
+
+*/
+/*
+        sprintf(cPayload, "%s : %d ", "hello from ESP32 (QOS0)", i++);
+        paramsQOS0.payloadLen = strlen(cPayload);
+        vTaskDelay(pdMS_TO_TICKS(10000));  
+        rc = aws_iot_mqtt_publish(&client, TOPIC, TOPIC_LEN, &paramsQOS0);
+        
+        sprintf(cPayload, "%s : %d ", "hello from ESP32 (QOS1)", i++);
+        paramsQOS1.payloadLen = strlen(cPayload);
+        rc = aws_iot_mqtt_publish(&client, TOPIC, TOPIC_LEN, &paramsQOS1);
+        if (rc == MQTT_REQUEST_TIMEOUT_ERROR) {
+            ESP_LOGW(TAG, "QOS1 publish ack not received.");
+            rc = SUCCESS;
+        }*//*
+    }
+
+    //ESP_LOGE(TAG, "An error occurred in the main loop.");
+    //abort();
+}
+
+void aws_task::run_aws_task2(void *param){
+    aws_adapter* aws = (aws_adapter*)param;
+    settings_manager* sm = aws->get_settings_manager();
+    ESP_LOGI(TAG, "Initializing AWS");
+    //aws->connect(false, sm->get(AWS,AWS_MQTT_PORT)->get_string_value().c_str());
+    //aws->mqtt_connect();
+
+    
+
+
+    while(1){
+        vTaskDelay(pdMS_TO_TICKS(10000));
+        ESP_LOGI(TAG, ".");
+    }
+
 }
 
 aws_task::aws_task(settings_manager* sett_man){
     sm = sett_man;
+    aws = new aws_adapter();
+    aws->set_settings_manager(sm);
+    pl = new aws_publish_list;
+    aws->pl = pl;
 }
 
 void aws_task::run(){
     TaskHandle_t xHandle = NULL;
-    xTaskCreate( connect_task, "AWS TASK", 8196, NULL, tskIDLE_PRIORITY, &xHandle );
+    //xTaskCreate( connect_task, "AWS TASK", 8196, aws, tskIDLE_PRIORITY, &xHandle );
+    //vTaskDelay(pdMS_TO_TICKS(15000));    
+    xTaskCreate( run_aws_task2, "AWS2 TASK", 16*1024, aws, tskIDLE_PRIORITY, &xHandle );
+
 }
+
+aws_publish_list::aws_publish_list(){
+    xmessages_queue = xQueueCreate(10, sizeof(const char*));
+}
+
+void aws_publish_list::add_msg(string s){
+    ESP_LOGI(TAG, "add to list");
+    char* msg = new char[s.length()];
+    strcpy(msg, s.c_str());
+    xQueueSendToBack(xmessages_queue,&msg, 1000);
+    cntr++;
+}
+
+string aws_publish_list::get_next_msg(){
+    ESP_LOGI(TAG, "get from list");
+    char* msg;
+    xQueueReceive(xmessages_queue,&msg,portMAX_DELAY);
+    cntr--;
+    string res = string(msg);
+    delete(msg);
+    ESP_LOGI(TAG, "%s", res.c_str());
+    return res;
+}
+
+bool aws_publish_list::has_next_msg(){
+    return cntr>0;
+}*/

@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+	<meta charset="utf-8" />
+	<title>Einstellungen aktualisieren</title>
+	<script type="text/javascript">
+		var connection = new WebSocket('ws://192.168.178.53:3333');
+		// When the connection is open, send some data to the server
+		connection.onopen = function () {
+			console.log('WebSocket Open');
+			document.getElementById('log').innerHTML += '<br>WebSocket Open';
+		};
+
+		// Log errors
+		connection.onerror = function (error) {
+			console.log('WebSocket Error ' + error);
+			document.getElementById('log').innerHTML += '<br>WebSocket Error ' + error;
+		};
+
+		// Log messages from the server
+		connection.onmessage = function (e) {
+			console.log('Server: ' + e.data);
+			document.getElementById('log').innerHTML += '<br>Server: ' + e.data
+				.replace('\33[0;32m', '<span style="color:green">')
+				.replace('\33[0m','</span>');
+		};
+		
+	</script>
+</head>
+
+<body>
+<div id="log"></div>
+</body>
+</html>

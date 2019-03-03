@@ -32,8 +32,8 @@ class onewire_device{
         void print();
         uint16_t get_readings(){return readings;};
         uint16_t get_fails(){return fails;};
-        string addr_to_string();
-        string data_to_string();
+        std::string addr_to_string();
+        std::string data_to_string();
 };
 
 class onewire_adapter{
@@ -59,7 +59,7 @@ class onewire_adapter{
         int get_num_devices(){return num_devices;};
         onewire_adapter(uint8_t p);
         void read_data();
-        void get_log_elements(list <log_element*>* l);
+        void get_log_elements(std::list <log_element*>* l);
 };
 
 class onewire_logger{

@@ -5,8 +5,16 @@
 #include <list> 
 #include "esp_err.h"
 #include "cJSON.h"
+#include "esp_log.h"
 
-using namespace std;
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#include "freertos/event_groups.h"
+#include "freertos/semphr.h"
+#include "freertos/queue.h"
+
+#include "websocket_server.h"
+#include "websocket.h"
 
 typedef enum log_element_type{
     INTEGER,
@@ -17,13 +25,13 @@ typedef enum log_element_type{
 
 class log_element{
     private:
-        string name;
+        std::string name;
         log_element_type_t type;
         void* pointer;
     public:
-        log_element(string a_name, log_element_type_t a_type, void* a_pointer);
-        string value_to_string();
-        string get_name(){ return name;};
+        log_element(std::string a_name, log_element_type_t a_type, void* a_pointer);
+        std::string value_to_string();
+        std::string get_name(){ return name;};
         cJSON* to_JSON();
 };
 
@@ -38,16 +46,38 @@ class log_config{
 class log_manager{
     private:
         static constexpr char *TAG = (char*)"log_manager";
-        list <log_element*> elements;
+        std::list <log_element*> elements;
         log_config lc;
     public:
         log_manager(log_config alc);
 
         void add_element(log_element* e);
         void print_elements();
-        string json_elements_to_string();
-        list <log_element*>* get_list(){return &elements;};
+        std::string json_elements_to_string();
+        std::list <log_element*>* get_list(){return &elements;};
 };
 
+class websocket_server_task{
+    private:
+        static constexpr char *TAG = (char*)"websocket_server_task";
+    public:
+};
+
+class websocket_server{
+    private:
+        static constexpr char *TAG = (char*)"websocket_server";
+        static void server_task(void* pvParameters);
+        static void server_handle_task(void* pvParameters);
+        static void run_task(void* params);
+        static QueueHandle_t client_queue;
+        static void http_serve(struct netconn *conn);
+        static void websocket_callback(uint8_t num, WEBSOCKET_TYPE_t type,char* msg,uint64_t len);
+        static int port;
+        static int ws_vprintf( const char *str, va_list l );
+        static vprintf_like_t orig_print_func;
+    public:
+        websocket_server(int a_port);
+        void run();
+};
 
 #endif
